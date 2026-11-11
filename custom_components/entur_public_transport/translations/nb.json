@@ -1,0 +1,110 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Tjenesten er allerede satt opp",
+      "cannot_connect": "Får ikke kontakt med Entur",
+      "stop_not_found": "Entur finner ikke lenger dette stoppestedet."
+    },
+    "error": {
+      "cannot_connect": "Får ikke kontakt med Entur",
+      "no_stops": "Ingen stoppesteder har et navn som passer."
+    },
+    "step": {
+      "departures": {
+        "data": {
+          "expand_platforms": "Ta med alle plattformer",
+          "line_whitelist": "Linjer og retninger",
+          "number_of_departures": "Antall avganger",
+          "omit_non_boarding": "Skjul avganger uten påstigning",
+          "quays": "Plattformer",
+          "show_on_map": "Vis på kartet"
+        },
+        "data_description": {
+          "expand_platforms": "Lag en sensor for hver plattform med avganger, i tillegg til dem som er valgt over.",
+          "line_whitelist": "Vis bare avganger på disse linjene, hver mot endestasjonen som står oppført. Velg begge retninger for en linje, eller la feltet stå tomt, for å se alt.",
+          "number_of_departures": "Hvor mange kommende avganger hver sensor viser.",
+          "omit_non_boarding": "Hopp over avganger der det bare er avstigning.",
+          "quays": "Lag en sensor for hver av disse plattformene, i tillegg til den for hele stoppestedet. Har ingen virkning når alle plattformer legges til.",
+          "show_on_map": "Legg plattformens posisjon på sensorene, slik at de vises på kartet."
+        },
+        "description": "Velg hvilke avganger fra {stop} som skal vises."
+      },
+      "stop": {
+        "data": {
+          "stop_id": "Stoppested"
+        },
+        "data_description": {
+          "stop_id": "Stoppestedet avgangene hentes fra."
+        }
+      },
+      "user": {
+        "data": {
+          "search": "Navn på stoppested"
+        },
+        "data_description": {
+          "search": "Hele eller deler av navnet, for eksempel Jernbanetorget."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "platform": {
+        "name": "Plattform {code}"
+      }
+    }
+  },
+  "exceptions": {
+    "update_failed": {
+      "message": "Klarte ikke å hente avganger fra Entur."
+    }
+  },
+  "issues": {
+    "deprecated_yaml_import_issue_cannot_connect": {
+      "title": "YAML-oppsettet for Entur kunne ikke importeres",
+      "description": "Oppsett av Entur med YAML fjernes, men stoppet {stop_id} kunne ikke importeres fordi Entur ikke svarte.\n\nStart Home Assistant på nytt for å prøve igjen, eller fjern sensorplattformen `{domain}` fra configuration.yaml og legg til stoppet i brukergrensesnittet."
+    },
+    "deprecated_yaml_import_issue_stop_not_found": {
+      "title": "YAML-oppsettet for Entur kunne ikke importeres",
+      "description": "Oppsett av Entur med YAML fjernes, men stoppet {stop_id} kunne ikke importeres fordi Entur ikke kjenner det.\n\nRett eller fjern sensorplattformen `{domain}` i configuration.yaml og legg til stoppet i brukergrensesnittet."
+    },
+    "deprecated_yaml_import_issue_unknown": {
+      "title": "YAML-oppsettet for Entur kunne ikke importeres",
+      "description": "Oppsett av Entur med YAML fjernes, men stoppet {stop_id} kunne ikke importeres.\n\nFjern sensorplattformen `{domain}` fra configuration.yaml og legg til stoppet i brukergrensesnittet."
+    }
+  },
+  "options": {
+    "abort": {
+      "cannot_connect": "Får ikke kontakt med Entur",
+      "stop_not_found": "Entur finner ikke lenger dette stoppestedet."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "expand_platforms": "Ta med alle plattformer",
+          "line_whitelist": "Linjer og retninger",
+          "number_of_departures": "Antall avganger",
+          "omit_non_boarding": "Skjul avganger uten påstigning",
+          "quays": "Plattformer",
+          "show_on_map": "Vis på kartet"
+        },
+        "data_description": {
+          "expand_platforms": "Lag en sensor for hver plattform med avganger, i tillegg til dem som er valgt over.",
+          "line_whitelist": "Vis bare avganger på disse linjene, hver mot endestasjonen som står oppført. Velg begge retninger for en linje, eller la feltet stå tomt, for å se alt.",
+          "number_of_departures": "Hvor mange kommende avganger hver sensor viser.",
+          "omit_non_boarding": "Hopp over avganger der det bare er avstigning.",
+          "quays": "Lag en sensor for hver av disse plattformene, i tillegg til den for hele stoppestedet. Har ingen virkning når alle plattformer legges til.",
+          "show_on_map": "Legg plattformens posisjon på sensorene, slik at de vises på kartet."
+        },
+        "description": "Velg hvilke avganger fra {stop} som skal vises."
+      }
+    }
+  },
+  "selector": {
+    "whole_line": {
+      "options": {
+        "label": "{code} (begge retninger)"
+      }
+    }
+  }
+}

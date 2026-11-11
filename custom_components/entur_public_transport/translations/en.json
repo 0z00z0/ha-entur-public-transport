@@ -1,0 +1,110 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Service is already configured",
+      "cannot_connect": "Failed to connect",
+      "stop_not_found": "Entur no longer knows this stop."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "no_stops": "No stops match this name."
+    },
+    "step": {
+      "departures": {
+        "data": {
+          "expand_platforms": "Add every platform",
+          "line_whitelist": "Lines and directions",
+          "number_of_departures": "Number of departures",
+          "omit_non_boarding": "Hide departures without boarding",
+          "quays": "Platforms",
+          "show_on_map": "Show on map"
+        },
+        "data_description": {
+          "expand_platforms": "Create a sensor for every platform at the stop that has departures, in addition to those chosen above.",
+          "line_whitelist": "Only show departures on these lines, each towards the destination shown. Pick both directions of a line, or leave the field empty, to see everything.",
+          "number_of_departures": "How many upcoming departures each sensor lists.",
+          "omit_non_boarding": "Leave out departures where passengers can only get off.",
+          "quays": "Create a sensor for each of these platforms, in addition to the one for the whole stop. Has no effect while every platform is added.",
+          "show_on_map": "Add the platform position to the sensors so they appear on the map."
+        },
+        "description": "Choose which departures from {stop} are shown."
+      },
+      "stop": {
+        "data": {
+          "stop_id": "Stop"
+        },
+        "data_description": {
+          "stop_id": "The stop to show departures from."
+        }
+      },
+      "user": {
+        "data": {
+          "search": "Stop name"
+        },
+        "data_description": {
+          "search": "All or part of the name of the stop, for example Jernbanetorget."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "platform": {
+        "name": "Platform {code}"
+      }
+    }
+  },
+  "exceptions": {
+    "update_failed": {
+      "message": "Could not fetch departures from Entur."
+    }
+  },
+  "issues": {
+    "deprecated_yaml_import_issue_cannot_connect": {
+      "title": "The Entur YAML configuration could not be imported",
+      "description": "Configuring Entur using YAML is being removed, but the stop {stop_id} could not be imported because Entur could not be reached.\n\nRestart Home Assistant to try again, or remove the `{domain}` sensor platform from configuration.yaml and add the stop through the UI."
+    },
+    "deprecated_yaml_import_issue_stop_not_found": {
+      "title": "The Entur YAML configuration could not be imported",
+      "description": "Configuring Entur using YAML is being removed, but the stop {stop_id} could not be imported because Entur does not know it.\n\nCorrect or remove the `{domain}` sensor platform in configuration.yaml and add the stop through the UI."
+    },
+    "deprecated_yaml_import_issue_unknown": {
+      "title": "The Entur YAML configuration could not be imported",
+      "description": "Configuring Entur using YAML is being removed, but the stop {stop_id} could not be imported.\n\nRemove the `{domain}` sensor platform from configuration.yaml and add the stop through the UI."
+    }
+  },
+  "options": {
+    "abort": {
+      "cannot_connect": "Failed to connect",
+      "stop_not_found": "Entur no longer knows this stop."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "expand_platforms": "Add every platform",
+          "line_whitelist": "Lines and directions",
+          "number_of_departures": "Number of departures",
+          "omit_non_boarding": "Hide departures without boarding",
+          "quays": "Platforms",
+          "show_on_map": "Show on map"
+        },
+        "data_description": {
+          "expand_platforms": "Create a sensor for every platform at the stop that has departures, in addition to those chosen above.",
+          "line_whitelist": "Only show departures on these lines, each towards the destination shown. Pick both directions of a line, or leave the field empty, to see everything.",
+          "number_of_departures": "How many upcoming departures each sensor lists.",
+          "omit_non_boarding": "Leave out departures where passengers can only get off.",
+          "quays": "Create a sensor for each of these platforms, in addition to the one for the whole stop. Has no effect while every platform is added.",
+          "show_on_map": "Add the platform position to the sensors so they appear on the map."
+        },
+        "description": "Choose which departures from {stop} are shown."
+      }
+    }
+  },
+  "selector": {
+    "whole_line": {
+      "options": {
+        "label": "{code} (both directions)"
+      }
+    }
+  }
+}
