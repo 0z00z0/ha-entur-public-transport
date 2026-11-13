@@ -49,12 +49,21 @@
   },
   "entity": {
     "sensor": {
+      "disruptions": {
+        "name": "Disruptions"
+      },
       "platform": {
         "name": "Platform {code}"
       }
     }
   },
   "exceptions": {
+    "situation_failed": {
+      "message": "Could not fetch the message from Entur."
+    },
+    "situation_not_found": {
+      "message": "Entur has no message {situation_id}."
+    },
     "update_failed": {
       "message": "Could not fetch departures from Entur."
     }
@@ -104,6 +113,18 @@
     "whole_line": {
       "options": {
         "label": "{code} (both directions)"
+      }
+    }
+  },
+  "services": {
+    "get_situation": {
+      "name": "Get message",
+      "description": "Fetches the full text of a disruption message from Entur.",
+      "fields": {
+        "situation_id": {
+          "name": "Message id",
+          "description": "One of the ids listed with the message on a disruption sensor."
+        }
       }
     }
   }

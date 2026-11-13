@@ -41,12 +41,35 @@ fragment callData on EstimatedCall {
 }
 """
 
+# Cancellation, message summaries for the whole trip, and where a cut-short trip ends.
+DISRUPTION_FRAGMENT = """
+fragment situationData on PtSituationElement {
+  situationNumber
+  summary { value language }
+}
+fragment disruptionData on EstimatedCall {
+  ...callData
+  cancellation
+  quay { stopPlace { name } }
+  situations { ...situationData }
+  serviceJourneyEstimatedCalls {
+    previous { situations { ...situationData } }
+    next {
+      cancellation
+      quay { stopPlace { name } }
+      situations { ...situationData }
+    }
+  }
+}
+"""
+
 PATTERN_FIELDS = "journeyPattern { quays { stopPlace { id } } }"
 PATTERNS_PER_QUERY = 20
 
 DEPARTURES_QUERY = (
     """
 query(
+  $stop: String!,
   $stops: [String],
   $quays: [String],
   $whitelist: InputWhiteListed,
@@ -83,9 +106,21 @@ query(
       ...callData
     }
   }
+  disruptions: stopPlace(id: $stop) {
+    estimatedCalls(
+      timeRange: $timeRange,
+      whiteListed: $whitelist,
+      arrivalDeparture: $arrivalDeparture,
+      numberOfDepartures: $numberOfDepartures,
+      numberOfDeparturesPerLineAndDestinationDisplay: $numberPerLine,
+      includeCancelledTrips: true) {
+      ...disruptionData
+    }
+  }
 }
 """
     + CALL_FRAGMENT
+    + DISRUPTION_FRAGMENT
 )
 
 PLATFORMS_QUERY = (
@@ -139,6 +174,16 @@ query($id: String!, $timeRange: Int, $withDirection: Boolean = true) {
 """
     + CALL_FRAGMENT
 )
+
+SITUATION_QUERY = """
+query($id: String!) {
+  situation(situationNumber: $id) {
+    situationNumber
+    summary { value language }
+    description { value language }
+  }
+}
+"""
 
 STOP_NAME_QUERY = "query($id: String!) { stopPlace(id: $id) { id name } }"
 
@@ -351,18 +396,24 @@ async def async_get_platforms(
 
 async def async_get_departures(
     hass: HomeAssistant,
+    stop_id: str,
     stop_ids: list[str],
     quay_ids: list[str],
     line_filter: LineFilter,
     number_of_departures: int,
     omit_non_boarding: bool,
     patterns: Patterns,
-) -> list[tuple[dict[str, Any], bool]]:
-    """Return the stops and platforms, each with its wanted departures."""
+) -> tuple[list[tuple[dict[str, Any], bool]], list[dict[str, Any]]]:
+    """Return the stops and platforms with their wanted departures.
+
+    Also returns the stop place's wanted departures with cancelled trips and
+    disruption fields, kept apart so they never change the others.
+    """
     data = await _async_graphql(
         hass,
         DEPARTURES_QUERY,
         {
+            "stop": stop_id,
             "stops": stop_ids,
             "quays": quay_ids,
             "timeRange": WEEK,
@@ -375,15 +426,17 @@ async def async_get_departures(
     places = [(place, False) for place in data["stopPlaces"] if place] + [
         (place, True) for place in data["quays"] if place
     ]
+    disrupted = (data["disruptions"] or {}).get("estimatedCalls", [])
     if line_filter.line_ids:
         await _async_add_directions(
             hass,
-            [call for place, _ in places for call in place["estimatedCalls"]],
+            [call for place, _ in places for call in place["estimatedCalls"]]
+            + disrupted,
             patterns,
         )
     for place, _ in places:
         place["estimatedCalls"] = line_filter.wanted(place["estimatedCalls"])
-    return places
+    return places, line_filter.wanted(disrupted)
 
 
 async def async_get_stop_place(
@@ -410,6 +463,14 @@ async def async_get_stop_name(
     return data["stopPlace"]
 
 
+async def async_get_situation(
+    hass: HomeAssistant, situation_id: str
+) -> dict[str, Any] | None:
+    """Return a situation message with its summary and description."""
+    data = await _async_graphql(hass, SITUATION_QUERY, {"id": situation_id})
+    return data["situation"]
+
+
 async def async_get_parent_stop_ids(hass: HomeAssistant, quay_id: str) -> list[str]:
     """Return the stop place of a platform, then the stop place holding that."""
     data = await _async_graphql(hass, PARENT_QUERY, {"id": quay_id})
@@ -419,6 +480,17 @@ async def async_get_parent_stop_ids(hass: HomeAssistant, quay_id: str) -> list[s
         stop_ids.append(stop_place["id"])
         stop_place = stop_place.get("parent")
     return stop_ids
+
+
+NORWEGIAN = {"no", "nb", "nob"}
+
+
+def text(texts: list[dict[str, str]]) -> str | None:
+    """Return the Norwegian text, else the first."""
+    return next(
+        (item["value"] for item in texts if item["language"] in NORWEGIAN),
+        texts[0]["value"] if texts else None,
+    )
 
 
 def short_id(entur_id: str) -> str:

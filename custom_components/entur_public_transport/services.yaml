@@ -1,0 +1,7 @@
+get_situation:
+  fields:
+    situation_id:
+      required: true
+      example: "NSB:SituationNumber:1692a463-3cc6-42fe-a59d-a5f2a5c2adc6"
+      selector:
+        text:

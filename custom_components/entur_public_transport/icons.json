@@ -1,0 +1,7 @@
+{
+  "services": {
+    "get_situation": {
+      "service": "mdi:message-alert-outline"
+    }
+  }
+}

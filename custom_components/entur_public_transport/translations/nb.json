@@ -49,12 +49,21 @@
   },
   "entity": {
     "sensor": {
+      "disruptions": {
+        "name": "Avvik"
+      },
       "platform": {
         "name": "Plattform {code}"
       }
     }
   },
   "exceptions": {
+    "situation_failed": {
+      "message": "Klarte ikke å hente meldingen fra Entur."
+    },
+    "situation_not_found": {
+      "message": "Entur har ingen melding {situation_id}."
+    },
     "update_failed": {
       "message": "Klarte ikke å hente avganger fra Entur."
     }
@@ -104,6 +113,18 @@
     "whole_line": {
       "options": {
         "label": "{code} (begge retninger)"
+      }
+    }
+  },
+  "services": {
+    "get_situation": {
+      "name": "Hent melding",
+      "description": "Henter hele teksten i en avviksmelding fra Entur.",
+      "fields": {
+        "situation_id": {
+          "name": "Meldings-id",
+          "description": "En av id-ene som står ved meldingen på en avvikssensor."
+        }
       }
     }
   }

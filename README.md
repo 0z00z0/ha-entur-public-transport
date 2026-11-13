@@ -2,7 +2,7 @@
 
 Departures from Entur, set up in the user interface instead of YAML. Stops are found by name, and lines and directions are picked from lists.
 
-Status: 0.5.0 — 2026-11-11 15:28
+Status: 0.6.0 — 2026-11-13 07:15
 
 ## Installation
 
@@ -69,6 +69,24 @@ Every departure slot n from 1 to the configured number of departures is always p
 - Without real-time data, `realtime` is false and `expected` equals `aimed`.
 - `departures` is a string because Home Assistant sends list and dict attributes to ESPHome as Python text, not JSON. Eight departures take about 950 characters.
 - The `departure_<n>_…` attributes and `departures` are not recorded in history.
+
+## Disruptions
+
+Each stop also gets a Disruptions sensor, named Avvik in Norwegian. The state is the number of cancelled and cut-short departures. A cut-short departure runs from the stop but is cancelled before the end of its trip.
+
+- `affected_departures` lists them with `line`, `direction`, `destination`, `aimed`, `expected`, `status` and `last_stop`. `status` is `cancelled` or `cut_short`; `last_stop` is the last stop the trip serves, and empty for a cancelled departure. A trip that ends at the stop itself has that stop as `last_stop`.
+- `situations` lists Entur's messages for the trips with `summary`, `lines` and `ids`.
+- `disruptions` holds the same as one JSON string.
+- The unique id is the stop id with `_disruptions`.
+
+The action `entur_public_transport.get_situation` returns the full text of one message. Pass one of the `ids` as `situation_id`; the response has `id`, `summary` and `description`.
+
+```yaml
+action: entur_public_transport.get_situation
+data:
+  situation_id: "NSB:SituationNumber:1692a463-3cc6-42fe-a59d-a5f2a5c2adc6"
+response_variable: message
+```
 
 ## Covered operators
 

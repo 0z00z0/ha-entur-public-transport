@@ -36,7 +36,13 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .api import DIRECTION_SEPARATOR, EnturApiError, async_get_parent_stop_ids, short_id
+from .api import (
+    DIRECTION_SEPARATOR,
+    EnturApiError,
+    async_get_parent_stop_ids,
+    short_id,
+    text,
+)
 from .const import (
     CONF_EXPAND_PLATFORMS,
     CONF_LEGACY_NAME,
@@ -105,6 +111,11 @@ JSON_KEYS = {
 }
 
 
+# Keys of an affected departure and of a situation in the disruptions JSON.
+DISRUPTION_JSON_KEYS = ("l", "dir", "to", "a", "e", "s", "end")
+SITUATION_JSON_KEYS = ("sum", "l", "ids")
+
+
 def due_in_minutes(timestamp: datetime) -> int:
     """Get the time in minutes from a timestamp."""
     return int((timestamp - dt_util.now()).total_seconds() / 60)
@@ -130,7 +141,7 @@ def departure_fields(call: EstimatedCall) -> dict[str, Any]:
         delay = int((expected - aimed).total_seconds() / 60)
     line = raw.get("serviceJourney", {}).get("journeyPattern", {}).get("line", {})
     code = line.get("publicCode")
-    front = raw.get("destinationDisplay", {}).get("frontText")
+    front = destination_text(raw)
     return {
         "route": " ".join(p for p in (code, front) if p) or None,
         "route_id": line.get("id"),
@@ -139,6 +150,33 @@ def departure_fields(call: EstimatedCall) -> dict[str, Any]:
         "delay": delay,
         "realtime": realtime,
     }
+
+
+def destination_text(raw: dict[str, Any]) -> str | None:
+    """Return the destination text, or None where Entur gives no destination."""
+    return (raw.get("destinationDisplay") or {}).get("frontText")
+
+
+def disruption_status(call: EstimatedCall) -> tuple[str, str | None] | None:
+    """Return "cancelled" or "cut_short", the latter with the last stop served."""
+    raw = call.raw
+    if raw["cancellation"]:
+        return "cancelled", None
+    later = raw["serviceJourneyEstimatedCalls"]["next"]
+    if not later or not later[-1]["cancellation"]:
+        return None
+    served = [stop for stop in later if not stop["cancellation"]] or [raw]
+    return "cut_short", ((served[-1]["quay"] or {}).get("stopPlace") or {}).get("name")
+
+
+def trip_situations(call: EstimatedCall) -> list[dict[str, Any]]:
+    """Return the situations of every call of the trip."""
+    calls = call.raw["serviceJourneyEstimatedCalls"]
+    return [
+        situation
+        for trip_call in (*calls["previous"], call.raw, *calls["next"])
+        for situation in trip_call["situations"]
+    ]
 
 
 def _departure_time(departure: dict[str, Any]) -> datetime | None:
@@ -285,6 +323,7 @@ async def async_setup_entry(
         EnturLineDirectionSensor(coordinator, choice, name)
         for choice, name in coordinator.line_directions.items()
     )
+    entities.append(EnturDisruptionSensor(coordinator))
 
     # Deselected platforms and lines leave their sensors behind otherwise.
     unique_ids = {entity.unique_id for entity in entities}
@@ -301,7 +340,7 @@ class EnturSensor(CoordinatorEntity[EnturCoordinator], SensorEntity):
 
     _attr_attribution = "Data provided by entur.org under NLOD"
     _attr_has_entity_name = True
-    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_native_unit_of_measurement: str | None = UnitOfTime.MINUTES
     # Departure data changes on every poll; recording it adds a row per poll.
     _unrecorded_attributes = frozenset(
         {
@@ -405,3 +444,70 @@ class EnturLineDirectionSensor(EnturSensor):
         return self.coordinator.direction_calls.get(
             (self._line_id, self._direction), []
         )
+
+
+class EnturDisruptionSensor(EnturSensor):
+    """Cancelled and cut-short departures from the stop place, with messages."""
+
+    _attr_native_unit_of_measurement = None
+    _attr_translation_key = "disruptions"
+    _unrecorded_attributes = frozenset(
+        {"affected_departures", "situations", "disruptions"}
+    )
+
+    def __init__(self, coordinator: EnturCoordinator) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator, coordinator.stop_id)
+        self._attr_unique_id = coordinator.disruptions_id
+        self._update()
+
+    @override
+    def _update(self) -> None:
+        affected: list[dict[str, Any]] = []
+        situations: dict[str | None, dict[str, Any]] = {}
+        for call in self.coordinator.disruption_calls:
+            line = call.line_public_code
+            # Entur repeats one message under a new id per trip.
+            for situation in trip_situations(call):
+                summary = text(situation["summary"])
+                found = situations.setdefault(
+                    summary, {"summary": summary, "lines": [], "ids": []}
+                )
+                if line not in found["lines"]:
+                    found["lines"].append(line)
+                if situation["situationNumber"] not in found["ids"]:
+                    found["ids"].append(situation["situationNumber"])
+            if (status := disruption_status(call)) is None:
+                continue
+            fields = departure_fields(call)
+            choice = f"{call.line_id}{DIRECTION_SEPARATOR}{call.raw.get('direction')}"
+            affected.append(
+                {
+                    "line": line,
+                    "direction": self.coordinator.line_directions.get(choice),
+                    "destination": destination_text(call.raw),
+                    "aimed": fields["aimed"],
+                    "expected": fields["expected"],
+                    "status": status[0],
+                    "last_stop": status[1],
+                }
+            )
+        self._attr_native_value = len(affected)
+        self._attr_extra_state_attributes = {
+            "affected_departures": affected,
+            "situations": list(situations.values()),
+            "disruptions": json.dumps(
+                {
+                    "d": [
+                        dict(zip(DISRUPTION_JSON_KEYS, item.values(), strict=True))
+                        for item in affected
+                    ],
+                    "m": [
+                        dict(zip(SITUATION_JSON_KEYS, item.values(), strict=True))
+                        for item in situations.values()
+                    ],
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+        }
