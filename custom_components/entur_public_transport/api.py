@@ -78,7 +78,8 @@ query(
   $timeRange: Int,
   $omitNonBoarding: Boolean = true,
   $arrivalDeparture: ArrivalDeparture = departures,
-  $withDirection: Boolean = false) {
+  $withDirection: Boolean = false,
+  $withDisruptions: Boolean = true) {
   stopPlaces(ids: $stops) {
     id
     name
@@ -113,7 +114,7 @@ query(
       arrivalDeparture: $arrivalDeparture,
       numberOfDepartures: $numberOfDepartures,
       numberOfDeparturesPerLineAndDestinationDisplay: $numberPerLine,
-      includeCancelledTrips: true) {
+      includeCancelledTrips: true) @include(if: $withDisruptions) {
       ...disruptionData
     }
   }
@@ -403,11 +404,13 @@ async def async_get_departures(
     number_of_departures: int,
     omit_non_boarding: bool,
     patterns: Patterns,
-) -> tuple[list[tuple[dict[str, Any], bool]], list[dict[str, Any]]]:
+    with_disruptions: bool,
+) -> tuple[list[tuple[dict[str, Any], bool]], list[dict[str, Any]] | None]:
     """Return the stops and platforms with their wanted departures.
 
-    Also returns the stop place's wanted departures with cancelled trips and
-    disruption fields, kept apart so they never change the others.
+    With disruptions, also returns the stop place's wanted departures with
+    cancelled trips and disruption fields, kept apart so they never change the
+    others; else None.
     """
     data = await _async_graphql(
         hass,
@@ -420,13 +423,18 @@ async def async_get_departures(
             "omitNonBoarding": omit_non_boarding,
             # Stop places take arrivalDeparture in place of omitNonBoarding.
             "arrivalDeparture": "departures" if omit_non_boarding else "both",
+            "withDisruptions": with_disruptions,
             **line_filter.variables(number_of_departures),
         },
     )
     places = [(place, False) for place in data["stopPlaces"] if place] + [
         (place, True) for place in data["quays"] if place
     ]
-    disrupted = (data["disruptions"] or {}).get("estimatedCalls", [])
+    disrupted = (
+        (data.get("disruptions") or {}).get("estimatedCalls", [])
+        if with_disruptions
+        else []
+    )
     if line_filter.line_ids:
         await _async_add_directions(
             hass,
@@ -436,7 +444,7 @@ async def async_get_departures(
         )
     for place, _ in places:
         place["estimatedCalls"] = line_filter.wanted(place["estimatedCalls"])
-    return places, line_filter.wanted(disrupted)
+    return places, line_filter.wanted(disrupted) if with_disruptions else None
 
 
 async def async_get_stop_place(

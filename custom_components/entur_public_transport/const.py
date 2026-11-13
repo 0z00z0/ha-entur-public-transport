@@ -6,7 +6,14 @@ from homeassistant.const import Platform
 
 DOMAIN = "entur_public_transport"
 PLATFORMS = [Platform.SENSOR]
-SCAN_INTERVAL = timedelta(seconds=45)
+DEFAULT_SCAN_INTERVAL = 45
+MIN_SCAN_INTERVAL = 30
+MAX_SCAN_INTERVAL = 600
+# Disruptions are fetched this often, or at the update interval if longer.
+DISRUPTION_INTERVAL = timedelta(minutes=5)
+# Polls are scheduled from the whole second plus a random offset, so a gap can
+# fall a little short of the interval.
+DISRUPTION_TOLERANCE = timedelta(seconds=3)
 
 API_CLIENT_NAME = "0z0-ha_entur_public_transport"
 GEOCODER_URL = "https://api.entur.io/geocoder/v1/autocomplete"

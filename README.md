@@ -25,7 +25,7 @@ A YAML setup of the built-in sensor is imported on start, one entry per stop pla
 
 Each line is listed once per direction, with the destinations shown on the vehicle, for example `31 → Fornebu / Snarøya`. Picking one direction hides departures the other way; picking both, or none, shows everything.
 
-Each stop is one entry. The settings can be changed later under Configure, and the entry reloads on save.
+Each stop is one entry. The settings can be changed later under Configure, and the entry reloads on save. Configure also sets the update interval, 45 seconds by default and from 30 to 600.
 
 ## Sensors
 
@@ -72,7 +72,7 @@ Every departure slot n from 1 to the configured number of departures is always p
 
 ## Disruptions
 
-Each stop also gets a Disruptions sensor, named Avvik in Norwegian. The state is the number of cancelled and cut-short departures. A cut-short departure runs from the stop but is cancelled before the end of its trip.
+Each stop also gets a Disruptions sensor, named Avvik in Norwegian. The state is the number of cancelled and cut-short departures. A cut-short departure runs from the stop but is cancelled before the end of its trip. Disruptions are fetched every 5 minutes, or at the update interval if that is longer. A departure leaves the list once it is due, although Entur lists a cancelled one for a while longer.
 
 - `affected_departures` lists them with `line`, `direction`, `destination`, `aimed`, `expected`, `status` and `last_stop`. `status` is `cancelled` or `cut_short`; `last_stop` is the last stop the trip serves, and empty for a cancelled departure. A trip that ends at the stop itself has that stop as `last_stop`.
 - `situations` lists Entur's messages for the trips with `summary`, `lines` and `ids`.

@@ -1,5 +1,6 @@
 """Data update coordinator for the Entur public transport integration."""
 
+from datetime import datetime, timedelta
 import logging
 import time
 from typing import override
@@ -7,9 +8,11 @@ from typing import override
 from enturclient.dto import EstimatedCall, Place
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import (
     DIRECTION_SEPARATOR,
@@ -32,8 +35,10 @@ from .const import (
     CONF_STOP_ID,
     CONF_STOP_SENSOR,
     CONF_WHITELIST_LINES,
+    DEFAULT_SCAN_INTERVAL,
+    DISRUPTION_INTERVAL,
+    DISRUPTION_TOLERANCE,
     DOMAIN,
-    SCAN_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,12 +53,15 @@ class EnturCoordinator(DataUpdateCoordinator[dict[str, Place]]):
 
     def __init__(self, hass: HomeAssistant, entry: EnturConfigEntry) -> None:
         """Initialise the coordinator."""
+        update_interval = timedelta(
+            seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=SCAN_INTERVAL,
+            update_interval=update_interval,
         )
         self.stop_id: str = entry.data[CONF_STOP_ID]
         self.quays: list[str] = list(entry.options[CONF_QUAYS])
@@ -64,6 +72,8 @@ class EnturCoordinator(DataUpdateCoordinator[dict[str, Place]]):
         self.direction_calls: dict[tuple[str, str], list[EstimatedCall]] = {}
         # Departures from the stop place, cancelled ones included.
         self.disruption_calls: list[EstimatedCall] = []
+        self._disruption_interval = max(DISRUPTION_INTERVAL, update_interval)
+        self._disruptions_since: datetime | None = None
         # Emptied hourly for timetable changes and journeys not resolved before.
         self._patterns: Patterns = {}
         self._patterns_since = time.monotonic()
@@ -148,6 +158,12 @@ class EnturCoordinator(DataUpdateCoordinator[dict[str, Place]]):
         if time.monotonic() - self._patterns_since > 3600:
             self._patterns.clear()
             self._patterns_since = time.monotonic()
+        now = dt_util.utcnow()
+        with_disruptions = (
+            self._disruptions_since is None
+            or now - self._disruptions_since
+            >= self._disruption_interval - DISRUPTION_TOLERANCE
+        )
         try:
             # The stop place is left out when no sensor shows its departures.
             show_stop = self.config_entry.data.get(CONF_STOP_SENSOR, True)
@@ -160,13 +176,16 @@ class EnturCoordinator(DataUpdateCoordinator[dict[str, Place]]):
                 int(options[CONF_NUMBER_OF_DEPARTURES]),
                 options[CONF_OMIT_NON_BOARDING],
                 self._patterns,
+                with_disruptions,
             )
         except EnturApiError as err:
             raise UpdateFailed(
                 translation_domain=DOMAIN, translation_key="update_failed"
             ) from err
         data = {place["id"]: Place(place, is_platform) for place, is_platform in places}
-        self.disruption_calls = [EstimatedCall(call) for call in disrupted]
+        if disrupted is not None:
+            self.disruption_calls = [EstimatedCall(call) for call in disrupted]
+            self._disruptions_since = now
         self.direction_calls = {}
         if self.line_directions and (stop := data.get(self.stop_id)):
             for call in stop.estimated_calls:

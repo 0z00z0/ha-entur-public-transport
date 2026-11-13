@@ -480,6 +480,9 @@ class EnturDisruptionSensor(EnturSensor):
             if (status := disruption_status(call)) is None:
                 continue
             fields = departure_fields(call)
+            # Entur lists cancelled departures for a while after they were due.
+            if (when := _departure_time(fields)) and when <= dt_util.now():
+                continue
             choice = f"{call.line_id}{DIRECTION_SEPARATOR}{call.raw.get('direction')}"
             affected.append(
                 {

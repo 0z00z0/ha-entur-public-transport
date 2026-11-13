@@ -95,6 +95,7 @@
           "number_of_departures": "Number of departures",
           "omit_non_boarding": "Hide departures without boarding",
           "quays": "Platforms",
+          "scan_interval": "Update interval",
           "show_on_map": "Show on map"
         },
         "data_description": {
@@ -103,6 +104,7 @@
           "number_of_departures": "How many upcoming departures each sensor lists.",
           "omit_non_boarding": "Leave out departures where passengers can only get off.",
           "quays": "Create a sensor for each of these platforms, in addition to the one for the whole stop. Has no effect while every platform is added.",
+          "scan_interval": "How often, in seconds, Entur is asked for new departures.",
           "show_on_map": "Add the platform position to the sensors so they appear on the map."
         },
         "description": "Choose which departures from {stop} are shown."

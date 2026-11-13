@@ -95,6 +95,7 @@
           "number_of_departures": "Antall avganger",
           "omit_non_boarding": "Skjul avganger uten påstigning",
           "quays": "Plattformer",
+          "scan_interval": "Oppdateringsintervall",
           "show_on_map": "Vis på kartet"
         },
         "data_description": {
@@ -103,6 +104,7 @@
           "number_of_departures": "Hvor mange kommende avganger hver sensor viser.",
           "omit_non_boarding": "Hopp over avganger der det bare er avstigning.",
           "quays": "Lag en sensor for hver av disse plattformene, i tillegg til den for hele stoppestedet. Har ingen virkning når alle plattformer legges til.",
+          "scan_interval": "Hvor ofte, i sekunder, Entur blir spurt om nye avganger.",
           "show_on_map": "Legg plattformens posisjon på sensorene, slik at de vises på kartet."
         },
         "description": "Velg hvilke avganger fra {stop} som skal vises."

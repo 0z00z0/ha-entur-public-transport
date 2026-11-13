@@ -12,7 +12,7 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlowWithReload,
 )
-from homeassistant.const import CONF_NAME, CONF_SHOW_ON_MAP
+from homeassistant.const import CONF_NAME, CONF_SCAN_INTERVAL, CONF_SHOW_ON_MAP
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
@@ -54,10 +54,13 @@ from .const import (
     DEFAULT_EXPAND_PLATFORMS,
     DEFAULT_NUMBER_OF_DEPARTURES,
     DEFAULT_OMIT_NON_BOARDING,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SHOW_ON_MAP,
     DOMAIN,
     MAX_DEPARTURES,
+    MAX_SCAN_INTERVAL,
     MIN_DEPARTURES,
+    MIN_SCAN_INTERVAL,
 )
 
 
@@ -328,7 +331,12 @@ class EnturOptionsFlow(OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(data=departure_options(user_input))
+            return self.async_create_entry(
+                data={
+                    **departure_options(user_input),
+                    CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                }
+            )
         try:
             stop_place = await async_get_stop_place(
                 self.hass, self.config_entry.data[CONF_STOP_ID]
@@ -353,6 +361,20 @@ class EnturOptionsFlow(OptionsFlowWithReload):
                     self.config_entry.options,
                     await _async_whole_line_label(self.hass),
                     registered,
+                ).extend(
+                    {
+                        probatio.Required(
+                            CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                        ): NumberSelector(
+                            NumberSelectorConfig(
+                                min=MIN_SCAN_INTERVAL,
+                                max=MAX_SCAN_INTERVAL,
+                                step=1,
+                                mode=NumberSelectorMode.BOX,
+                                unit_of_measurement="s",
+                            )
+                        )
+                    }
                 ),
                 self.config_entry.options,
             ),
