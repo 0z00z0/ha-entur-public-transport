@@ -46,6 +46,7 @@ DISRUPTION_FRAGMENT = """
 fragment situationData on PtSituationElement {
   situationNumber
   summary { value language }
+  affects { __typename }
 }
 fragment disruptionData on EstimatedCall {
   ...callData

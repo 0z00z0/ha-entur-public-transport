@@ -75,8 +75,8 @@ Every departure slot n from 1 to the configured number of departures is always p
 Each stop also gets a Disruptions sensor, named Avvik in Norwegian. The state is the number of cancelled and cut-short departures. A cut-short departure runs from the stop but is cancelled before the end of its trip. Disruptions are fetched every 5 minutes, or at the update interval if that is longer. A departure leaves the list once it is due, although Entur lists a cancelled one for a while longer.
 
 - `affected_departures` lists them with `line`, `direction`, `destination`, `aimed`, `expected`, `status` and `last_stop`. `status` is `cancelled` or `cut_short`; `last_stop` is the last stop the trip serves, and empty for a cancelled departure. A trip that ends at the stop itself has that stop as `last_stop`.
-- `situations` lists Entur's messages for the trips with `summary`, `lines` and `ids`.
-- `disruptions` holds the same as one JSON string.
+- `situations` lists Entur's messages for the trips with `summary`, `lines`, `ids` and `departures`. `departures` lists the departures from the stop whose trip carries the message, by time, with `aimed`, `line` and `direction` as in `affected_departures`. Only a message that Entur ties to particular trips lists departures; a message about a stop or a line, such as a closed entrance, has an empty list. The list is also empty where no departure from the stop carries the message, and a departure leaves it once it is due.
+- `disruptions` holds the same as one JSON string. The keys are shortened: `d` holds the affected departures with `l`, `dir`, `to`, `a`, `e`, `s` and `end`, and `m` holds the messages with `sum`, `l`, `ids` and `dep`, whose entries have `a`, `l` and `dir`.
 - The unique id is the stop id with `_disruptions`.
 
 The action `entur_public_transport.get_situation` returns the full text of one message. Pass one of the `ids` as `situation_id`; the response has `id`, `summary` and `description`.

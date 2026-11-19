@@ -111,9 +111,12 @@ JSON_KEYS = {
 }
 
 
-# Keys of an affected departure and of a situation in the disruptions JSON.
+# Keys of an affected departure in the disruptions JSON.
 DISRUPTION_JSON_KEYS = ("l", "dir", "to", "a", "e", "s", "end")
-SITUATION_JSON_KEYS = ("sum", "l", "ids")
+# Entur's affects that name a trip; the rest name stops, lines or nothing.
+JOURNEY_AFFECTS = frozenset(
+    {"AffectedServiceJourney", "AffectedStopPlaceOnServiceJourney"}
+)
 
 
 def due_in_minutes(timestamp: datetime) -> int:
@@ -177,6 +180,14 @@ def trip_situations(call: EstimatedCall) -> list[dict[str, Any]]:
         for trip_call in (*calls["previous"], call.raw, *calls["next"])
         for situation in trip_call["situations"]
     ]
+
+
+def is_journey_situation(situation: dict[str, Any]) -> bool:
+    """Return whether a message concerns particular trips, not a stop or line."""
+    return any(
+        affected["__typename"] in JOURNEY_AFFECTS
+        for affected in situation.get("affects") or []
+    )
 
 
 def _departure_time(departure: dict[str, Any]) -> datetime | None:
@@ -467,33 +478,49 @@ class EnturDisruptionSensor(EnturSensor):
         situations: dict[str | None, dict[str, Any]] = {}
         for call in self.coordinator.disruption_calls:
             line = call.line_public_code
+            fields = departure_fields(call)
+            # Entur lists cancelled departures for a while after they were due.
+            departed = bool((when := _departure_time(fields)) and when <= dt_util.now())
+            choice = f"{call.line_id}{DIRECTION_SEPARATOR}{call.raw.get('direction')}"
+            departure = {
+                "aimed": fields["aimed"],
+                "line": line,
+                "direction": self.coordinator.line_directions.get(choice),
+            }
             # Entur repeats one message under a new id per trip.
             for situation in trip_situations(call):
                 summary = text(situation["summary"])
                 found = situations.setdefault(
-                    summary, {"summary": summary, "lines": [], "ids": []}
+                    summary,
+                    {"summary": summary, "lines": [], "ids": [], "departures": []},
                 )
                 if line not in found["lines"]:
                     found["lines"].append(line)
                 if situation["situationNumber"] not in found["ids"]:
                     found["ids"].append(situation["situationNumber"])
-            if (status := disruption_status(call)) is None:
+                if (
+                    fields["aimed"]
+                    and not departed
+                    and is_journey_situation(situation)
+                    and departure not in found["departures"]
+                ):
+                    found["departures"].append(departure)
+            if (status := disruption_status(call)) is None or departed:
                 continue
-            fields = departure_fields(call)
-            # Entur lists cancelled departures for a while after they were due.
-            if (when := _departure_time(fields)) and when <= dt_util.now():
-                continue
-            choice = f"{call.line_id}{DIRECTION_SEPARATOR}{call.raw.get('direction')}"
             affected.append(
                 {
                     "line": line,
-                    "direction": self.coordinator.line_directions.get(choice),
+                    "direction": departure["direction"],
                     "destination": destination_text(call.raw),
                     "aimed": fields["aimed"],
                     "expected": fields["expected"],
                     "status": status[0],
                     "last_stop": status[1],
                 }
+            )
+        for found in situations.values():
+            found["departures"].sort(
+                key=lambda dep: datetime.fromisoformat(dep["aimed"])
             )
         self._attr_native_value = len(affected)
         self._attr_extra_state_attributes = {
@@ -506,7 +533,19 @@ class EnturDisruptionSensor(EnturSensor):
                         for item in affected
                     ],
                     "m": [
-                        dict(zip(SITUATION_JSON_KEYS, item.values(), strict=True))
+                        {
+                            "sum": item["summary"],
+                            "l": item["lines"],
+                            "ids": item["ids"],
+                            "dep": [
+                                {
+                                    "a": dep["aimed"],
+                                    "l": dep["line"],
+                                    "dir": dep["direction"],
+                                }
+                                for dep in item["departures"]
+                            ],
+                        }
                         for item in situations.values()
                     ],
                 },
